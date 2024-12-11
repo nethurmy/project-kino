@@ -1,0 +1,99 @@
+import telebot
+from telebot import types
+
+API_TOKEN = '7896502738:AAEyHrQGzSYKJDryUWheTkWaoAWi-AB7Xpk'  # Замените на ваш токен
+bot = telebot.TeleBot(API_TOKEN)
+
+# Список фильмов (код: название)
+movies = {
+    '001': 'Молодой человек',
+    '002': 'Сериал: Телохранители(2022)',
+}
+
+# ID каналов для проверки подписки
+channel1_id = -1002439321624  # Замените на ID вашего канала 1
+channel2_id = -1002304530896  # Замените на ID вашего канала 2
+
+# Ссылки на каналы
+channel1_link = "https://t.me/test_kino999"  # Замените на ссылку вашего канала 1
+channel2_link = "https://t.me/just_pereh"  # Замените на ссылку вашего канала 2
+
+# Словарь для хранения временных данных пользователей
+user_data = {}
+
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    user_name = message.from_user.first_name
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    
+    search_button = types.InlineKeyboardButton(text="🔍 Поиск", callback_data="search")
+    inline_markup = types.InlineKeyboardMarkup().add(search_button)
+
+    bot.send_message(
+        message.chat.id,
+        f"Привет {user_name}! Нажмите 'Поиск' для поиска фильма.",
+        reply_markup=inline_markup
+    )
+
+@bot.callback_query_handler(func=lambda call: call.data == "search")
+def handle_search_callback(call):
+    bot.send_message(call.message.chat.id, "Введите код фильма для поиска:")
+    bot.register_next_step_handler(call.message, process_movie_code)
+
+def process_movie_code(message):
+    code = message.text.strip()
+    
+    # Сохраняем код фильма в данных пользователя
+    user_data[message.chat.id] = {'movie_code': code}
+    
+    # Всегда отправляем информацию о подписке
+    send_subscription_info(message)
+
+def send_subscription_info(message):
+    inline_markup = types.InlineKeyboardMarkup()
+    channel1_button = types.InlineKeyboardButton(text="Подписаться на Канал 1", url=channel1_link)
+    channel2_button = types.InlineKeyboardButton(text="Подписаться на Канал 2", url=channel2_link)
+    check_subscription_button = types.InlineKeyboardButton(text="✅ Проверить подписку", callback_data="check_subscription")
+
+    inline_markup.add(channel1_button, channel2_button, check_subscription_button)
+    
+    bot.send_message(
+        message.chat.id,
+        "Вы не подписаны! Подпишитесь, для работы с ботом нужно подписаться на каналы:\n\n",
+        reply_markup=inline_markup
+    )
+
+@bot.callback_query_handler(func=lambda call: call.data == "check_subscription")
+def handle_check_subscription(call):
+    user_id = call.from_user.id
+    
+    if is_user_subscribed(user_id):
+        # Получаем код фильма из временных данных пользователя
+        movie_code = user_data.get(call.message.chat.id, {}).get('movie_code')
+        
+        if movie_code:
+            search_movie(call.message, movie_code)
+        else:
+            bot.send_message(call.message.chat.id, "Код фильма не найден. Пожалуйста, попробуйте снова.")
+    else:
+        send_subscription_info(call.message)
+
+def search_movie(message, code):
+    if code in movies:
+        bot.send_message(message.chat.id, f"Фильм с кодом {code}: {movies[code]}")
+    else:
+        bot.send_message(message.chat.id, "Фильм с таким кодом не найден.")
+
+def is_user_subscribed(user_id):
+    try:
+        member1 = bot.get_chat_member(channel1_id, user_id)
+        member2 = bot.get_chat_member(channel2_id, user_id)
+
+        return (member1.status in ['member', 'administrator', 'creator'] and
+                member2.status in ['member', 'administrator', 'creator'])
+    except Exception as e:
+        print(f"Ошибка при проверке подписки: {e}")
+        return False
+
+if __name__ == "__main__":
+    bot.polling(none_stop=True)
