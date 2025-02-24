@@ -1,7 +1,7 @@
 import telebot
 from telebot import types
 
-API_TOKEN = '7896502738:AAEyHrQGzSYKJDryUWheTkWaoAWi-AB7Xpk'  # Замените на ваш токен
+API_TOKEN = 'токен'  # Замените на ваш токен
 bot = telebot.TeleBot(API_TOKEN)
 
 # Список фильмов (код: название)
